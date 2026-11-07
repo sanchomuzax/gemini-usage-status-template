@@ -88,7 +88,6 @@ def _bucket_row(group_name, bucket, now):
         "percent_used": used,
         "percent_remaining": None if used is None else round(100 - used, 1),
         "percent_inferred": inferred,
-        "percent_held": bucket.get("heldFromPrevious") is True,
         "resets_at": bucket.get("resetTime"),
         "scope": group_name,
         "window_duration_minutes": minutes,

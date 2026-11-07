@@ -77,11 +77,11 @@ what agy shows, `tmux attach -t gemini-usage-agy` (detach with Ctrl+B, D).
   marks that state; it is not a reset.
 - **`currentTier` says `free-tier` even on AI Pro.** The subscription is in
   `paidTier`.
-- **Replicas disagree.** Twelve calls in one minute returned 1.1%, 2.0% and
-  1.2% for the same 5-hour window, and one call an hour after a request still
-  showed nothing used. Within a window usage only grows, so each reading takes
-  the most-used of three samples two seconds apart, and a window never falls
-  below its previous reading for the same reset time (`percent_held: true`).
+- **Replicas disagree, and usage can go down.** Calls seconds apart returned
+  1.1%, 2.0% and 1.2% for the same 5-hour window, and later a window fell from
+  2.7% to a value every sample agreed on (1.9%) without a reset. Each reading
+  therefore takes the median of three samples two seconds apart: one stray
+  answer is outvoted, a change every sample agrees on is followed.
 
 ### One assumption (not yet observed)
 

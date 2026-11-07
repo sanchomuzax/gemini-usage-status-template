@@ -10,15 +10,15 @@ from pathlib import Path
 
 from .fsutil import exclusive_lock
 from .normalize import QuotaShapeError, normalize_summary
-from .stabilize import hold_within_window, merge_samples
+from .stabilize import merge_samples
 from .tui import AgySession, UsageParseError, parse_usage
 
 REPO_DIR = Path(__file__).resolve().parents[2]
 SOURCE = "agy /usage"
 
-# The backend's replicas disagree (see stabilize.py); two looks a couple of
-# seconds apart make it likely that at least one answer is current.
-QUOTA_SAMPLES = 2
+# The backend's replicas disagree (see stabilize.py); the median of three looks
+# a couple of seconds apart outvotes a single stray answer.
+QUOTA_SAMPLES = 3
 SAMPLE_GAP_SECONDS = 2
 
 
@@ -56,7 +56,7 @@ def _read(session, status_path, samples, sleep, now):
         readings.append(summary)
         meta = {**meta, **{k: v for k, v in found.items() if v}}
     previous = _previous_status(status_path) or {}
-    figures = normalize_summary(hold_within_window(merge_samples(readings), previous), now=observed)
+    figures = normalize_summary(merge_samples(readings), now=observed)
     plan = meta.get("plan") or previous.get("subscription_name")
     return {
         **figures,

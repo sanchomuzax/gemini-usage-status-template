@@ -43,10 +43,10 @@ def test_happy_path(tmp_path):
     assert result["session_resets_at"] == "2026-11-07T14:39:00Z"
 
 
-def test_two_samples_take_the_most_used(tmp_path):
-    lagging = PANEL.replace("98.27%", "99.90%")
-    result, session = run(tmp_path, [lagging, PANEL], samples=2)
-    assert session.reads == 2
+def test_three_samples_take_the_median(tmp_path):
+    stray = PANEL.replace("98.27%", "90.00%")
+    result, session = run(tmp_path, [PANEL, stray, PANEL], samples=3)
+    assert session.reads == 3
     assert result["session_percent_used"] == 1.7
 
 
@@ -56,14 +56,11 @@ def test_plan_survives_from_the_previous_status(tmp_path):
     assert result["subscription_type"] == "google-ai-pro"
 
 
-def test_previous_reading_of_the_same_window_is_held(tmp_path):
+def test_a_lower_reading_is_not_held_up(tmp_path):
     first, _ = run(tmp_path, [PANEL])
-    rows = [dict(r, percent_used=4.0, resets_at="2026-11-07T14:39:30Z") if r["bucket_id"] == "gemini-5h" else r
-            for r in first["limits"]]
+    rows = [dict(r, percent_used=4.0) if r["bucket_id"] == "gemini-5h" else r for r in first["limits"]]
     result, _ = run(tmp_path, [PANEL], previous={"limits": rows})
-    row = next(r for r in result["limits"] if r["bucket_id"] == "gemini-5h")
-    assert row["percent_used"] == 4.0 and row["percent_held"] is True
-    assert row["resets_at"] == "2026-11-07T14:39:30Z"
+    assert result["session_percent_used"] == 1.7
 
 
 def test_sign_in_problem_is_an_error(tmp_path):

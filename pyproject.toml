@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gemini-usage-status"
-version = "0.2.0"
+version = "0.2.1"
 description = "Token-free Google AI Pro (Antigravity) quota monitor"
 requires-python = ">=3.10"
 
