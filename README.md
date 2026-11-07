@@ -81,6 +81,11 @@ token is missing, expired, or the server refused the call.
   marks that state; it is not a reset.
 - **`currentTier` says `free-tier` even on AI Pro.** The subscription is in
   `paidTier`.
+- **Replicas disagree.** Twelve calls in one minute returned 1.1%, 2.0% and
+  1.2% for the same 5-hour window, and one call an hour after a request still
+  showed nothing used. Within a window usage only grows, so each reading takes
+  the most-used of three samples two seconds apart, and a window never falls
+  below its previous reading for the same reset time (`percent_held: true`).
 
 ### One assumption (not yet observed)
 
