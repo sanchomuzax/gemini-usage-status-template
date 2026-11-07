@@ -75,7 +75,7 @@ mezői), és állj meg.
 
 **UNKNOWN**: a kvóta nem olvasható. Próbáld a fenti `git pull`-t; ha utána is
 UNKNOWN, dolgozz CAUTION szabályok szerint, és szólj a felhasználónak, hogy a
-keretfigyelés épp nem lát. Az `agy` `/usage` parancsa pontos számot ad.
+keretfigyelés épp nem lát. Az `agy -p /usage` parancs pontos számot ad, modellhívás nélkül.
 
 ### Ha egy subagent hibával tér vissza
 

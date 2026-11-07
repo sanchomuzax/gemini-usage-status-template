@@ -47,20 +47,21 @@ crontab -e
 */5 * * * * ~/Documents/gemini-usage-status/gemini-usage-check.sh >/dev/null 2>&1
 ```
 
-Needs `tmux`. If `quota_status` is `error`, read `quota_error_detail`; to see
-what agy shows, `tmux attach -t gemini-usage-agy` (detach with Ctrl+B, D).
+Needs the Antigravity CLI (`agy`), signed in once. If `quota_status` is
+`error`, read `quota_error_detail`; `agy -p /usage` in a terminal shows the
+same reading.
 
 ## What it does
 
-1. **Session.** A long-running `agy` lives in a detached tmux session
-   (`gemini-usage-agy`), started on demand in plan mode. The Antigravity CLI keeps
-   its own login fresh there, the way the Codex monitor leans on
-   `codex app-server`. You never have to use `agy` yourself.
-2. **Quota.** Each reading types `/usage` into that session, captures the
-   "Models & Quota" panel, and closes it again: every model group's 5-hour and
-   weekly window with the remaining percentage and the time until it refreshes.
-   No model turn is started, so a reading costs no quota. Enter is pressed only
-   when the input line reads exactly `/usage`; otherwise nothing is sent.
+1. **Quota.** Each reading runs `agy --mode plan -p /usage --output-format json`.
+   The Antigravity CLI answers its own slash commands in print mode without a
+   model turn (see its "Headless mode" docs): the reply holds every model
+   group's 5-hour and weekly window with the remaining fraction and the reset
+   time, `num_turns` is 0 and no tokens are counted. agy refreshes its own login
+   for the run, so the monitor never touches the OAuth token. A reply that did
+   start a model turn is refused. You never have to use `agy` yourself.
+2. **Account.** The e-mail comes from the `id_token_email` field of agy's token
+   file (only that field is read); the plan name is kept from earlier readings.
 3. **Publish.** `record_status.py` writes `status.json`, appends to
    `history/YYYY-MM.jsonl`, and the runner commits and pushes on a meaningful
    change (1 point of movement, a status change, or a 6-hour heartbeat measured
@@ -70,8 +71,9 @@ what agy shows, `tmux attach -t gemini-usage-agy` (detach with Ctrl+B, D).
 
 - **`agy` does not write a renewed token back to its file** outside an
   interactive start, so reading the token file and calling the quota API
-  directly stops working an hour after sign-in. Reading `/usage` from a running
-  `agy` has no such limit.
+  directly stops working an hour after sign-in. `agy -p /usage` refreshes the
+  login itself for every run and has no such limit (verified 7.5 hours after
+  the token file was last written).
 - **A window starts at its first use.** Before that, `resetTime` is simply
   "now + window length" and moves with every reading. `window_started: false`
   marks that state; it is not a reset.

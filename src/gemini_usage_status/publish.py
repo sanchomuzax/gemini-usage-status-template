@@ -16,8 +16,8 @@ CHANGE_THRESHOLD = 1   # percentage points
 HEARTBEAT_HOURS = 6    # publish at least this often regardless
 
 NOTE = (
-    "Percentages are REAL, from the Antigravity (Code Assist) quota summary on "
-    "daily-cloudcode-pa.googleapis.com -- the same figures `agy /usage` shows. "
+    "Percentages are REAL, from the Antigravity CLI's own quota report "
+    "(`agy -p /usage`, no model turn) -- the same figures its /usage panel shows. "
     "session = Gemini 5-hour window, weekly = Gemini 7-day window; limits[] also "
     "holds the Claude/GPT group (3p) and the separate Gemini 4 Argon weekly cap. "
     "A window starts at its first use: window_started false means nothing has "
