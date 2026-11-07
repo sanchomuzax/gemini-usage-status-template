@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import platform
 import subprocess
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -12,11 +13,17 @@ from .agy import agy_version, find_agy, refresh_via_agy
 from .client import HOST, ApiError, CodeAssistClient, user_agent
 from .fsutil import atomic_write_text, exclusive_lock
 from .normalize import QuotaShapeError, normalize_summary, tier_from_load
+from .stabilize import hold_within_window, merge_samples
 from .token import DEFAULT_TOKEN_PATH, TokenError, account_label, needs_refresh, read_token
 
 # Project, subscription and CLI version barely change; asking once a day keeps
-# the per-run cost at a single quota call.
+# the per-run cost down to the quota samples.
 STATE_MAX_AGE = timedelta(hours=24)
+
+# The backend's replicas disagree (see stabilize.py); a few samples a couple of
+# seconds apart make it likely that at least one answer is current.
+QUOTA_SAMPLES = 3
+SAMPLE_GAP_SECONDS = 2
 
 HINT_403 = ("the server rejected the call; if agy itself still works, Google "
             "probably changed the required User-Agent or host")
@@ -126,6 +133,18 @@ class _Reader:
         _save_state(self.state_path, fresh)
         return fresh, True
 
+    def extra_samples(self, state, count, sleep):
+        """Further readings for the merge; a failed extra sample is just skipped."""
+        samples = []
+        for _ in range(count):
+            sleep(SAMPLE_GAP_SECONDS)
+            try:
+                samples.append(self.client(state.get("agy_version")).post(
+                    "retrieveUserQuotaSummary", {"project": state["project"]}))
+            except ApiError:
+                continue
+        return samples
+
     def summary(self, state, fetched_now):
         """The quota summary, with one renewal on 401 and one state refresh on 403."""
         def ask(current):
@@ -162,15 +181,26 @@ def _describe(error):
     return f"unexpected failure: {type(error).__name__}: {error}"
 
 
-def _read(now, token_path, state_path, agy_bin, runner, client_factory, system, machine, clock):
+def _previous_status(path):
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _read(now, token_path, state_path, agy_bin, runner, client_factory, system, machine, clock,
+          samples, sleep):
     session = _Session(token_path, agy_bin, runner, now)
     session.ensure_fresh()
     reader = _Reader(session, state_path, client_factory, system, machine, now)
     state, fetched_now = reader.state()
     response, state = reader.summary(state, fetched_now)
+    merged = merge_samples([response] + reader.extra_samples(state, samples - 1, sleep))
+    steady = hold_within_window(merged, _previous_status(state_path.with_name("status.json")))
     # Unused windows report "now + window" as their reset, so compare against
     # the moment the answer arrived, not the start of the run.
-    figures = normalize_summary(response, now=clock())
+    figures = normalize_summary(steady, now=clock())
     return {
         **figures,
         "subscription_type": state.get("subscription_type"),
@@ -184,7 +214,7 @@ def _read(now, token_path, state_path, agy_bin, runner, client_factory, system, 
 
 def collect(*, now=None, token_path=DEFAULT_TOKEN_PATH, state_path=None, agy_bin=None,
             runner=subprocess.run, client_factory=CodeAssistClient,
-            system=None, machine=None):
+            system=None, machine=None, samples=QUOTA_SAMPLES, sleep=time.sleep):
     fixed = now
     now = now or datetime.now(timezone.utc)
     state_path = Path(state_path or Path(__file__).resolve().parents[2] / ".state.json")
@@ -192,6 +222,7 @@ def collect(*, now=None, token_path=DEFAULT_TOKEN_PATH, state_path=None, agy_bin
         with exclusive_lock(state_path.with_name(".collect.lock")):
             return _read(now, token_path, state_path, agy_bin or find_agy(), runner,
                          client_factory, system or platform.system(), machine or platform.machine(),
-                         clock=lambda: fixed or datetime.now(timezone.utc))
+                         clock=lambda: fixed or datetime.now(timezone.utc),
+                         samples=max(1, samples), sleep=sleep)
     except Exception as error:  # noqa: BLE001 -- the contract is "never raise"
         return {"error": _describe(error)}

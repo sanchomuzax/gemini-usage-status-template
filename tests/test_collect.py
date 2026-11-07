@@ -72,6 +72,8 @@ def env(tmp_path, captured_at, summary_after_use, load_code_assist_pro):
             agy_bin="/fake/agy",
             runner=runner,
             client_factory=lambda token, ua: FakeClient(token, ua, script, log),
+            samples=overrides.get("samples", 1),
+            sleep=lambda seconds: None,
         )
 
     return {
@@ -262,3 +264,26 @@ def test_error_detail_hides_the_home_directory():
 def test_state_file_is_written_atomically(env):
     env["run"]()
     assert not list(env["state_path"].parent.glob("*.tmp"))
+
+
+def test_several_samples_take_the_most_used(env, summary_after_use):
+    import copy
+    stale = copy.deepcopy(summary_after_use)
+    stale["groups"][0]["buckets"][1]["remainingFraction"] = 0.999   # gemini-5h, lagging replica
+    fresh = copy.deepcopy(summary_after_use)
+    fresh["groups"][0]["buckets"][1]["remainingFraction"] = 0.97
+    env["script"]["retrieveUserQuotaSummary"] = [stale, fresh, ApiError(503, "busy")]
+    result = env["run"](samples=3)
+    assert result["session_percent_used"] == 3.0
+    assert [c[0] for c in env["log"]].count("retrieveUserQuotaSummary") == 3
+
+
+def test_previous_status_of_the_same_window_is_held(env, summary_after_use):
+    first = env["run"]()
+    rows = [dict(r, percent_used=4.0) if r["bucket_id"] == "gemini-5h" else r for r in first["limits"]]
+    (env["state_path"].with_name("status.json")).write_text(json.dumps({"limits": rows}), encoding="utf-8")
+    env["script"]["retrieveUserQuotaSummary"].append(summary_after_use)
+    result = env["run"]()
+    assert result["session_percent_used"] == 4.0
+    row = next(r for r in result["limits"] if r["bucket_id"] == "gemini-5h")
+    assert row["percent_held"] is True
