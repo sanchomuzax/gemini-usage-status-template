@@ -102,3 +102,18 @@ def test_hold_without_previous_is_identity(summary_after_use):
 def test_unheld_rows_say_so(summary_after_use, captured_at):
     rows = normalize_summary(summary_after_use, now=captured_at)["limits"]
     assert all(r["percent_held"] is False for r in rows)
+
+
+def test_a_minute_of_countdown_wobble_is_the_same_window(summary_after_use, captured_at):
+    previous = previous_status(summary_after_use, captured_at, **{
+        "gemini-5h": {"percent_used": 2.0, "resets_at": "2026-11-07T14:40:00Z"}})
+    held = hold_within_window(summary_after_use, previous)   # fixture says 14:39:09
+    bucket = next(b for g in held["groups"] for b in g["buckets"] if b["bucketId"] == "gemini-5h")
+    assert bucket["remainingFraction"] == 0.98
+    assert bucket["resetTime"] == "2026-11-07T14:40:00Z"
+
+
+def test_unparseable_previous_reset_is_not_the_same_window(summary_after_use, captured_at):
+    previous = previous_status(summary_after_use, captured_at, **{
+        "gemini-5h": {"percent_used": 9.0, "resets_at": "garbage"}})
+    assert fractions(hold_within_window(summary_after_use, previous))["gemini-5h"] == 0.9899333

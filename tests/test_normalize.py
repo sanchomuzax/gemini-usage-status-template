@@ -9,7 +9,6 @@ from gemini_usage_status.normalize import (
     QuotaShapeError,
     normalize_summary,
     percent_used,
-    tier_from_load,
     window_started,
 )
 
@@ -121,28 +120,6 @@ def test_bucket_with_broken_fraction_does_not_count_as_zero(summary_after_use, c
     result = normalize_summary(data, now=captured_at)
     assert result["session_percent_used"] is None
     assert result["max_percent_used"] == 1.0
-
-
-def test_tier_from_load_prefers_paid_tier(load_code_assist_pro):
-    tier = tier_from_load(load_code_assist_pro)
-    assert tier == {
-        "subscription_type": "g1-pro-tier",
-        "subscription_name": "Google AI Pro",
-        "project": "example-project-123",
-    }
-
-
-def test_tier_from_load_without_paid_tier(load_code_assist_pro):
-    data = {k: v for k, v in load_code_assist_pro.items() if k != "paidTier"}
-    tier = tier_from_load(data)
-    assert tier["subscription_type"] == "free-tier"
-    assert tier["project"] == "example-project-123"
-
-
-def test_tier_from_load_garbage():
-    assert tier_from_load(None) == {
-        "subscription_type": None, "subscription_name": None, "project": None,
-    }
 
 
 def test_missing_fraction_key_means_exhausted(summary_after_use, captured_at):

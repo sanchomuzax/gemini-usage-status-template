@@ -11,8 +11,22 @@ let a window fall below what it already showed. Both are pure functions.
 from __future__ import annotations
 
 import copy
+from datetime import datetime, timedelta
 
 from .normalize import percent_used
+
+# The /usage countdown has minute precision, so one window's reset time can
+# wobble by a minute between readings. Within this much it is the same window.
+SAME_WINDOW = timedelta(minutes=3)
+
+
+def _same_window(old_reset, new_reset):
+    try:
+        old = datetime.fromisoformat(str(old_reset).replace("Z", "+00:00"))
+        new = datetime.fromisoformat(str(new_reset).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return abs(old - new) <= SAME_WINDOW
 
 
 def _fraction(bucket):
@@ -58,8 +72,9 @@ def hold_within_window(summary, previous_status):
     for bucket in _buckets(held):
         old = before.get(bucket.get("bucketId"))
         fraction = _fraction(bucket)
-        if old is None or fraction is None or old.get("resets_at") != bucket.get("resetTime"):
+        if old is None or fraction is None or not _same_window(old.get("resets_at"), bucket.get("resetTime")):
             continue
+        bucket["resetTime"] = old["resets_at"]   # keep one stable deadline per window
         if old["percent_used"] > percent_used(fraction):
             bucket["remainingFraction"] = round(1 - old["percent_used"] / 100, 6)
             bucket["heldFromPrevious"] = True

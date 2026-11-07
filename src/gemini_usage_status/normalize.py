@@ -131,19 +131,3 @@ def normalize_summary(summary, now):
         "limits": rows,
         "unknown_buckets": [row["bucket_id"] for row in rows if row["kind"] == "other"],
     }
-
-
-def tier_from_load(response):
-    """Subscription and project from loadCodeAssist.
-
-    currentTier reads "free-tier" even on a paid plan; the subscription lives in
-    paidTier, so that wins whenever it is present.
-    """
-    if not isinstance(response, dict):
-        return {"subscription_type": None, "subscription_name": None, "project": None}
-    tier = response.get("paidTier") or response.get("currentTier") or {}
-    return {
-        "subscription_type": tier.get("id"),
-        "subscription_name": tier.get("name"),
-        "project": response.get("cloudaicompanionProject"),
-    }

@@ -29,10 +29,5 @@ def summary_after_use():
 
 
 @pytest.fixture
-def load_code_assist_pro():
-    return load_fixture("load_code_assist_pro.json")
-
-
-@pytest.fixture
 def captured_at():
     return CAPTURED_AT

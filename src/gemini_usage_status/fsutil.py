@@ -25,8 +25,8 @@ def exclusive_lock(path):
     """Block until this process holds an exclusive flock on `path`.
 
     The cron run and an agent's budget check may read the quota at the same
-    moment; without this, both could start `agy models` and race on the token
-    file. Falls through without a lock if the file cannot be opened.
+    moment; without this, both would type into the same agy session at once.
+    Falls through without a lock if the file cannot be opened.
     """
     try:
         handle = open(path, "a", encoding="utf-8")  # noqa: SIM115 -- held for the block

@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """Fetch real Google AI Pro (Antigravity) quota utilization.
 
-Reads the OAuth token the Antigravity CLI (agy) keeps under
-~/.gemini/antigravity-cli/, lets agy renew it when it is about to expire, and
-asks the Code Assist quota summary for the 5-hour and weekly windows of every
-model group. No model turn is started, so a reading costs no quota.
+Reads the Antigravity CLI's own /usage panel from a long-running `agy` in a
+detached tmux session (started on demand). The CLI keeps its login fresh
+there itself. No model turn is started, so a reading costs no quota.
 
-Privacy: only quota figures, the subscription tier and the account's short name
-are emitted; the token never is. Prints one JSON object and never raises.
+Privacy: only quota figures, the plan and the account's short name are
+emitted. Prints one JSON object and never raises.
 """
 
 import json
