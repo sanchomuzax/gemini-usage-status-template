@@ -1,0 +1,28 @@
+name: smoke
+
+# Do not run on every push: a five-minute cron pushes data commits here, and
+# GitHub bills every job as a whole minute. Data commits carry [skip ci]; only
+# code changes and manual runs count.
+on:
+  push:
+    paths:
+      - "**.py"
+      - ".github/workflows/**"
+      - "*.sh"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+      - name: Install test dependency
+        run: python -m pip install pytest
+      - name: Run test suite
+        run: python -m pytest -q
+      - name: Check runner syntax
+        run: bash -n gemini-usage-check.sh
